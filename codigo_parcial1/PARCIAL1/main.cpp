@@ -11,7 +11,7 @@ char **leer_materias(int (pensum)[46][5]){
     char **codigo_nombre = new char*[46];
 
     for (int i=0; i<46; i++){
-        codigo_nombre[i] = new char[26];
+        codigo_nombre[i] = new char[24];
     }
 
     try{
@@ -65,12 +65,27 @@ char **leer_materias(int (pensum)[46][5]){
     return codigo_nombre;
 }
 
-void leer_horario(int horario[6][18][7]){
+void leer_horario(char (&horario)[17][6][8]){
     ifstream calendar;
 
     try {
         calendar.open("horario.txt");
         if (!calendar.is_open()) throw '2';
+
+        //  ALMACENAR CADA BLOQUE HORA-DIA-MATERIA EN UN ARREGLO INT
+        char linea[54];
+        while (calendar.getline(linea, 54)){
+            for (int HORA=0; HORA<17; HORA++){
+                int m=0;
+                for (int DIA=0; DIA<6; DIA++){
+                    for (int CODIGO=0; CODIGO<8; CODIGO++){
+                        horario[HORA][DIA][CODIGO] = linea[m+CODIGO];
+                    }
+                    m+=9;
+                }
+            }
+
+        }
     }
     catch (char c){
         cout << "Error #"<<c<<": ";
@@ -83,13 +98,62 @@ void leer_horario(int horario[6][18][7]){
     }
 }
 
-int main()
-{
+void leer_matricula(int (&materias_matricula)[15][2], int &num_materias){
+
+    ifstream matricula;
+    try{
+        char linea[10];
+        int codigo=0;
+
+        matricula.open("matricula.txt");
+        if (!matricula.is_open()) throw '3';
+
+        int i=0;
+        while (matricula.getline(linea,10)){
+
+            for (int j=0; j<7; j++){
+                codigo = codigo*10+(linea[j])-'0';
+            }
+
+            materias_matricula[i][0] = codigo;
+            materias_matricula[i][1] = linea[8]-'0';
+            i++;
+            num_materias++;
+        }
+        matricula.close();
+    }
+
+    catch (char c){
+        cout<<"Error # "<<c<<": ";
+        if(c=='3') cout<<"Error al abrir el archivo de matricula.\n";
+    }
+    catch (...){
+    cout<<"Error no definido\n";
+    }
+
+}
+
+void imprimir_horario(char (&horario)[17][6][8]){
+
+    cout <<"\n\nImprimiendo arreglo de horario\n\n";
+    cout << "\tLUNES\t\tMARTES\t\tMIERCOLES\tJUEVES\t\tVIERNES\t\tSABADO\n";
+    for (int HORA=0; HORA<17; HORA++){
+        cout << HORA+5 << ":00\t";
+        for (int DIA=0; DIA<6; DIA++){
+            for (int CODIGO=0; CODIGO<8; CODIGO++){
+                cout << horario[HORA][DIA][CODIGO];
+            }
+            cout << "\t";
+        }
+        cout << endl;
+    }
+
+}
+
+void probar_arreglo_pensum(int (&pensum)[46][5]){
+
     ofstream archivo;
     archivo.open("prueba.txt");
-    int pensum[46][5];
-    // LECTURA DE LAS MATERIAS
-    char **codigo_nombre = leer_materias(pensum);
 
     cout << "Imprimiendo pensum...\n\n";
     archivo << "Imprimiendo pensum...\n\n";
@@ -102,10 +166,18 @@ int main()
         archivo << endl;
     }
 
+    archivo.close();
+}
+
+void probar_arreglo_codigo_nombre(char **codigo_nombre){
+
+    ofstream archivo;
+    archivo.open("prueba.txt");
+
     cout <<"\n\nImprimiendo arreglo de codigo y nombre...\n\n";
     archivo << "\n\nImprimiendo arreglo de codigo y nombre...\n\n";
     for (int i=0; i<46; i++){
-        for (int j=0; j<26; j++){
+        for (int j=0; j<24; j++){
             cout<<codigo_nombre[i][j];
             archivo<<codigo_nombre[i][j];
         }
@@ -114,64 +186,207 @@ int main()
     }
 
     archivo.close();
-    //LIBERAR MEMORIA
+}
+
+bool materia_existe(int materia, int (&pensum)[46][5]){
+    for (int i=0; i<46; i++){
+        if (materia == pensum[i][0]){
+            return true;
+        }
+    }
+    cout << "La materia no existe en el pensum\n";
+    return false;
+}
+
+bool materia_matriculada(int materia, int (&materias_matricula)[15][2], int num_materias){
+    for (int i=0; i<num_materias; i++){
+        if (materia == materias_matricula[i][0]){
+            cout << "Ya matriculaste esa materia\n";
+            return true;
+        }
+    }
+    return false;
+}
+
+int creditos_matriculados(int materias_matricula[15][2], int num_materias){
+    int total_creditos=0;
+
+    for (int i=0; i<num_materias; i++){
+        total_creditos+=materias_matricula[i][1];
+    }
+
+    return total_creditos;
+}
+
+int creditos_de_materia(int materia, int pensum[46][5]){
+    int creditos =0;
+    for (int i=0; i<46;i++){
+        if (materia==pensum[i][0]){
+            creditos = pensum[i][1];
+        }
+    }
+    return creditos;
+}
+
+void agregar_materia(int materia, int pensum[46][5]){
+    ofstream matricula;
+    try{
+
+        matricula.open("matricula.txt");
+        if (!matricula.is_open()) throw '4';
+
+        matricula << materia << "|" << creditos_de_materia(materia, pensum);
+        matricula.close();
+    }
+
+    catch (char c){
+        cout<<"Error # "<<c<<": ";
+        if(c=='4') cout<<"Error al abrir el archivo de matricula.\n";
+    }
+    catch (...){
+        cout<<"Error no definido\n";
+    }
+
+}
+
+int main()
+{
+    int pensum[46][5];
+
+    // LECTURA DEL PENSUM
+    char **codigo_nombre = leer_materias(pensum);
+    //probar_arreglo_pensum(pensum);
+    //probar_arreglo_codigo_nombre(codigo_nombre);
+
+    // LECTURA DE LA MATRICULA
+    int num_materias=0;
+    int materias_matricula[15][2];
+    for (int i=0; i<15; i++){
+        for (int j=0; j<2; j++){
+            materias_matricula[i][j]=0;
+        }
+    }
+
+    leer_matricula(materias_matricula, num_materias);
+
+    //TOTAL DE LOS CREDITOS
+    int total_creditos = creditos_matriculados(materias_matricula, num_materias);
+
+    // LECTURA DEL HORARIO
+    char horario[17][6][8];
+    leer_horario(horario);
+
+
+    bool programa = true;
+    int opcion;
+
+    while (programa){
+
+        cout << "\n\n\t\t\t ORGANIZADOR DE HORARIO \n\nBienvenido a tu organizador de horario, Que quieres hacer primero?\n\n";
+
+        cout << "(1)Visualizar horario\n(2)Matricular materias\n(3)Agregar horas de estudio\n(4)Salir\n";
+        cin >> opcion;
+
+        //ACCION A REALIZAR
+        while (opcion < 1 || opcion > 4){
+            cout << "Opcion invalida, intente de nuevo\n";
+            cout << "(1)Visualizar horario\n(2)Matricular materias materia\n(3)Agregar horas de estudio\n(4)Salir";
+            cin >> opcion;
+        }
+
+        //Imprimir horario
+        if (opcion==1) imprimir_horario(horario);
+
+        // Matricular materia
+        while (opcion==2){
+            bool salir=false;
+            cout << "\nRecuerda que no puedes matricular mas de 24 creditos.\n";
+            cout <<"\n\n Creditos matriculados = " << total_creditos << endl;
+            if (total_creditos<8){
+                cout<<"\n\n Necesitas matricular mas materias!!\n";
+            }
+
+            else if (total_creditos==24){
+                cout << "No puedes matricular mas materias!!\n";
+                break;
+            }
+
+            while (!salir){
+                int materia;
+                char materia_char[9];
+                //ingresar el codigo de la materia
+                cout << "Ingrese el codigo de la materia a matricular: ";
+                cin >> materia;
+
+                int residuo = 10;
+                for (int i=1; i>8; i++){
+                    materia_char[i-6]= char(materia%residuo)-'0';
+                    residuo *= 10;
+                }
+
+                while (!materia_existe(materia, pensum) || materia_matriculada(materia, materias_matricula, num_materias)){
+                    cout << "Ingrese el codigo de la materia a matricular o ingrese 'x' o '0' para salir: ";
+                    cin >> materia;
+                    if (materia==0) {
+                        salir = true;
+                        break;
+                    }
+                }
+
+                if (creditos_de_materia(materia, pensum) + total_creditos > 24){
+                    cout << "No puedes matricular esta materia, demasiados creditos.\n\n";
+                }
+
+                else if (!salir){
+                    int DIA=0;
+                    int HORA=0;
+                    agregar_materia(materia, pensum);
+                    leer_matricula(materias_matricula, num_materias);
+
+                    cout << "\n Ingrese el dia donde quiere matricular la materia. \n(0)Lunes\n(1)Martes\n(3)Miercoles\n(4)Jueves\n(5)Viernes\n(6)Sabado\n";
+                    cin >> DIA;
+                    cout << "\n Ingrese la hora en formato 24h donde quiere matricular la materia. (HORARIO ESTABLECIDO DESDE LAS 5 HASTA LAS 21)\n";
+                    cin >> HORA;
+                    HORA -= 5;
+                    if (horario[HORA][DIA][0] != '-'){
+                        for (int i=0; i<7; i++){
+                            horario[HORA][DIA][i] = materia_char[i];
+                        }
+                    }
+
+                    cout << "\n\n Materia matriculada!!\n";
+                    leer_matricula(materias_matricula, num_materias);
+                    salir = true;
+                }
+
+            }
+            opcion=0;
+        }
+
+        //Agregar horas de estudio
+        while(opcion==3){
+            // Mostrar cuántas horas de estudios hacen falta en cada materia
+
+            // preguntar qué día quiere agregar la hora de estudio
+
+            //Sugerir horarios en un bucle hasta que se completen las horas o hasta que el usuario quiera salir
+
+            // Opción para el ingreso manual de la hora de estudio y cambiar de día
+            //Actualizar las horas de estudio y mostrarlas después de cada actualización
+
+            // Al finalizar en este apartado, 'opcion' se inicializa en 0 y vuelve al inicio.
+            opcion=0;
+        }
+
+
+        if (opcion == 4) programa = false;
+
+    }
 
     for (int i=0; i<46; i++){
         delete[] codigo_nombre[i];
     }
     delete[] codigo_nombre;
 
-        /*bool programa = true;
-        while (programa){
-            cout << "\t\t\t ORGANIZADOR DE HORARIO \n\nBienvenido a tu organizador de horario, Que quieres hacer primero?\n\n";
-
-            char opcion;
-            cout << "(1)Visualizar horario\n(2)Eliminar materia\n(3)Agregar horas de estudio\n(4)Salir\n";
-            cin >> opcion;
-
-            while (opcion < '1' || opcion>'4'){
-                cout << "Opcion invalida, intente de nuevo\n";
-                cout << "(1)Visualizar horario\n(2)Eliminar materia\n(3)Agregar horas de estudio\n(4)Salir";
-                cin >> opcion;
-            }
-
-            //Imprimir horario
-            if (opcion=='1'){
-                //Recorrer el arreglo horario con un for y buscar el nombre de la materia en el arreglo materias
-                cout << horario[0][0][0];
-            }
-
-            // Eliminar materia
-            while (opcion=='2'){
-
-                //ingresar el codigo de la materia
-
-                //verificar si está cursando esa materia
-
-                    //Eliminarla en caso de estar cursandola
-                    //buscar cada coincidencia en el horario y quitarlo del arreglo horario y del arreglo materias
-
-                //preguntar si quiere eliminar otra materia
-                opcion='0';
-            }
-
-            while(opcion=='3'){
-                // Mostrar cuántas horas de estudios hacen falta en cada materia
-
-                // preguntar qué día quiere agregar la hora de estudio
-
-                //Sugerir horarios en un bucle hasta que se completen las horas o hasta que el usuario quiera salir
-
-                    // Opción para el ingreso manual de la hora de estudio y cambiar de día
-                    //Actualizar las horas de estudio y mostrarlas después de cada actualización
-
-                // Al finalizar en este apartado, 'opcion' se inicializa en 0 y vuelve al inicio.
-                opcion='0';
-            }
-
-
-            if (opcion == '4') programa = false;
-
-        }*/
     return 0;
 }
