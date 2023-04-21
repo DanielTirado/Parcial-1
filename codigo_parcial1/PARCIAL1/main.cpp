@@ -74,8 +74,8 @@ void leer_horario(char (&horario)[17][6][8]){
 
         //  ALMACENAR CADA BLOQUE HORA-DIA-MATERIA EN UN ARREGLO INT
         char linea[54];
-        while (calendar.getline(linea, 54)){
             for (int HORA=0; HORA<17; HORA++){
+                calendar.getline(linea, 54);
                 int m=0;
                 for (int DIA=0; DIA<6; DIA++){
                     for (int CODIGO=0; CODIGO<8; CODIGO++){
@@ -84,8 +84,7 @@ void leer_horario(char (&horario)[17][6][8]){
                     m+=9;
                 }
             }
-
-        }
+        calendar.close();
     }
     catch (char c){
         cout << "Error #"<<c<<": ";
@@ -101,15 +100,16 @@ void leer_horario(char (&horario)[17][6][8]){
 void leer_matricula(int (&materias_matricula)[15][2], int &num_materias){
 
     ifstream matricula;
+    num_materias =0;
     try{
         char linea[10];
-        int codigo=0;
 
         matricula.open("matricula.txt");
         if (!matricula.is_open()) throw '3';
 
         int i=0;
         while (matricula.getline(linea,10)){
+            int codigo=0;
 
             for (int j=0; j<7; j++){
                 codigo = codigo*10+(linea[j])-'0';
@@ -228,14 +228,24 @@ int creditos_de_materia(int materia, int pensum[46][5]){
     return creditos;
 }
 
+int hora_docente(int materia, int pensum[46][5]){
+    int horas =0;
+    for (int i=0; i<46;i++){
+        if (materia==pensum[i][0]){
+            horas = pensum[i][2];
+        }
+    }
+    return horas;
+}
+
 void agregar_materia(int materia, int pensum[46][5]){
-    ofstream matricula;
+    ofstream matricula("matricula.txt", ios::app);
     try{
 
         matricula.open("matricula.txt");
         if (!matricula.is_open()) throw '4';
 
-        matricula << materia << "|" << creditos_de_materia(materia, pensum);
+        matricula << endl << materia << "|" << creditos_de_materia(materia, pensum) << endl;
         matricula.close();
     }
 
@@ -247,6 +257,33 @@ void agregar_materia(int materia, int pensum[46][5]){
         cout<<"Error no definido\n";
     }
 
+}
+
+void convertir_int_a_char(int numero, char (&numero_char)[8]){
+
+    for (int i=0; i<7; i++){
+        numero_char[6-i] = numero%10+'0';
+        numero/=10;
+    }
+    numero_char[7] = '\0';
+}
+
+void escribir_horario(char (&horario)[17][6][8]){
+    ofstream calendar;
+
+    calendar.open("horario.txt");
+
+    for (int HORA=0; HORA<17; HORA++){
+        for (int DIA=0; DIA<6; DIA++){
+            for (int CODIGO=0; CODIGO<8; CODIGO++){
+                calendar << horario[HORA][DIA][CODIGO];
+            }
+            calendar << "|";
+        }
+        calendar << endl;
+    }
+
+    calendar.close();
 }
 
 int main()
@@ -270,7 +307,6 @@ int main()
     leer_matricula(materias_matricula, num_materias);
 
     //TOTAL DE LOS CREDITOS
-    int total_creditos = creditos_matriculados(materias_matricula, num_materias);
 
     // LECTURA DEL HORARIO
     char horario[17][6][8];
@@ -299,6 +335,9 @@ int main()
 
         // Matricular materia
         while (opcion==2){
+
+            int total_creditos = creditos_matriculados(materias_matricula, num_materias);
+
             bool salir=false;
             cout << "\nRecuerda que no puedes matricular mas de 24 creditos.\n";
             cout <<"\n\n Creditos matriculados = " << total_creditos << endl;
@@ -312,17 +351,13 @@ int main()
             }
 
             while (!salir){
+
                 int materia;
-                char materia_char[9];
+                char materia_char[8];
                 //ingresar el codigo de la materia
                 cout << "Ingrese el codigo de la materia a matricular: ";
                 cin >> materia;
 
-                int residuo = 10;
-                for (int i=1; i>8; i++){
-                    materia_char[i-6]= char(materia%residuo)-'0';
-                    residuo *= 10;
-                }
 
                 while (!materia_existe(materia, pensum) || materia_matriculada(materia, materias_matricula, num_materias)){
                     cout << "Ingrese el codigo de la materia a matricular o ingrese 'x' o '0' para salir: ";
@@ -333,31 +368,55 @@ int main()
                     }
                 }
 
+
                 if (creditos_de_materia(materia, pensum) + total_creditos > 24){
                     cout << "No puedes matricular esta materia, demasiados creditos.\n\n";
                 }
 
                 else if (!salir){
-                    int DIA=0;
-                    int HORA=0;
+
+                    int horas_trabajo = hora_docente(materia, pensum);
+                    convertir_int_a_char(materia, materia_char);
+
                     agregar_materia(materia, pensum);
                     leer_matricula(materias_matricula, num_materias);
 
-                    cout << "\n Ingrese el dia donde quiere matricular la materia. \n(0)Lunes\n(1)Martes\n(3)Miercoles\n(4)Jueves\n(5)Viernes\n(6)Sabado\n";
-                    cin >> DIA;
-                    cout << "\n Ingrese la hora en formato 24h donde quiere matricular la materia. (HORARIO ESTABLECIDO DESDE LAS 5 HASTA LAS 21)\n";
-                    cin >> HORA;
-                    HORA -= 5;
-                    if (horario[HORA][DIA][0] != '-'){
-                        for (int i=0; i<7; i++){
-                            horario[HORA][DIA][i] = materia_char[i];
-                        }
-                    }
 
-                    cout << "\n\n Materia matriculada!!\n";
-                    leer_matricula(materias_matricula, num_materias);
-                    salir = true;
+                    for (int h=0; h<horas_trabajo; h++){
+                        cout << "\n\nNecesitas matricular " << horas_trabajo << "horas de trabajo con docente, ";
+                        cout << "llevas " << h << "horas matriculadas en esta materia.\n\n";
+
+                        int DIA=0;
+                        int HORA=0;
+
+                        cout << "\n Ingrese el dia donde quiere matricular la materia. \n(0)Lunes\n(1)Martes\n(2)Miercoles\n(3)Jueves\n(4)Viernes\n(5)Sabado\n";
+                        cin >> DIA;
+
+                        bool hora_ocupada=false;
+
+                        while (!hora_ocupada){
+                        cout << "\n Ingrese la hora en formato 24h donde quiere matricular la materia. (HORARIO ESTABLECIDO DESDE LAS 5 HASTA LAS 21)\n";
+                        cin >> HORA;
+                        HORA -= 5;
+                        if (horario[HORA][DIA][0] == '-'){
+                            for (int i=0; i<7; i++){
+                                horario[HORA][DIA][i] = materia_char[i];
+                            }
+                            horario[HORA][DIA][7] = 'D';
+                            hora_ocupada=true;
+                        }
+                        else{
+                            cout << "\nEsa hora la tienes ocupada, intenta de nuevo\n";
+                        }
+                        }
+
+                        cout << "\n\n Materia matriculada!!\n";
+                        escribir_horario(horario);
+                        salir = true;
+                    }
                 }
+
+                total_creditos = creditos_matriculados(materias_matricula, num_materias);
 
             }
             opcion=0;
